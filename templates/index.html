@@ -1,0 +1,181 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phish Scope — Automated Analyzer</title>
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">Phish Scope</div>
+  </header>
+
+  <main class="hero">
+    <div class="hero-inner">
+      <h1>Upload a file to analyze for phishing</h1>
+      <p class="subtitle">PDF, DOCX, EML, TXT — extract links, IPs, hashes and score the file.</p>
+
+      <!-- Upload Form -->
+      <form method="post" enctype="multipart/form-data" class="upload-form">
+        <label class="custom-file-upload">
+          <input id="fileInput" type="file" name="file" class="file-input" required>
+          <span class="btn-text">Choose File</span>
+        </label>
+        <span id="fileName" class="file-name">No file chosen</span>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary fancy-btn">🚀 Scan & Generate Report</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  {% if report %}
+  <section class="result-flow" id="results">
+    <h2 class="result-main-heading">Analysis Results</h2>
+
+    <!-- Result Header -->
+    <div class="result-header">
+      <div class="result-badge {% if report.scoring.severity == 'Malicious' %}bad-mal{% elif 'Suspicious' in report.scoring.severity %}bad-sus{% else %}bad-clean{% endif %}">
+        {{ report.scoring.severity }}
+      </div>
+      <p class="result-sub">Generated: {{ report.uploaded_at_utc }} UTC</p>
+    </div>
+
+    <!-- Summary -->
+    <div class="flow-card">
+      <h3>Summary</h3>
+      <p class="score">Overall Score: <strong>{{ report.scoring.score }}</strong></p>
+      <div class="section-text">
+        <strong>Key Findings:</strong>
+        <ul>
+          {% for r in report.scoring.reasons %}
+            <li>{{ r }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+    <!-- Indicators (table) -->
+    <div class="flow-card">
+      <h3>Indicators</h3>
+      <table class="result-table">
+        <tr>
+          <th>URLs</th>
+          <td>
+            {% if report.urls|length > 0 %}
+              <ul class="compact-list">
+                {% for u in report.urls %}
+                  <li><a href="{{ u }}" target="_blank" rel="noopener noreferrer">{{ u }}</a></li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <span class="muted">None</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th>Domains</th>
+          <td>
+            {% if report.domains|length > 0 %}
+              {{ report.domains | join(', ') }}
+            {% else %}
+              <span class="muted">None</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th>IPs</th>
+          <td>
+            {% if report.ips|length > 0 %}
+              {{ report.ips | join(', ') }}
+            {% else %}
+              <span class="muted">None</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <th>Emails</th>
+          <td>
+            {% if report.emails|length > 0 %}
+              {{ report.emails | join(', ') }}
+            {% else %}
+              <span class="muted">None</span>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- File Info -->
+    <div class="flow-card">
+      <h3>File Info</h3>
+      <table class="result-table">
+        <tr><th>File</th><td>{{ report.file }}</td></tr>
+        <tr><th>SHA256</th><td><code>{{ report.sha256 }}</code></td></tr>
+        <tr><th>Saved as</th><td><code>{{ report.saved_as }}</code></td></tr>
+      </table>
+    </div>
+
+    <!-- Email Metadata -->
+    {% if report.eml_meta %}
+    <div class="flow-card">
+      <h3>Email Metadata</h3>
+      <table class="result-table">
+        <tr><th>From</th><td>{{ report.eml_meta.from }}</td></tr>
+        <tr><th>Subject</th><td>{{ report.eml_meta.subject }}</td></tr>
+        <tr><th>Probable Origin IP</th><td><code>{{ report.eml_meta.origin_ip }}</code></td></tr>
+      </table>
+
+      <details class="hops-details">
+        <summary>Show Received Hops ({{ report.eml_meta.received|length }})</summary>
+        <ol class="hops-list">
+          {% for hop in report.eml_meta.received %}
+            <li><pre>{{ hop }}</pre></li>
+          {% endfor %}
+        </ol>
+      </details>
+    </div>
+    {% endif %}
+
+    <!-- VirusTotal -->
+    {% if report.vt_info %}
+    <div class="flow-card">
+      <h3>VirusTotal Info</h3>
+      <pre class="json-box">{{ report.vt_info | tojson(indent=2) }}</pre>
+    </div>
+    {% endif %}
+
+    <!-- Download -->
+    <div class="flow-card">
+      <a class="btn-download" href="/download/{{ rpath|replace('\\','/') }}">⬇ Download JSON Report</a>
+    </div>
+  </section>
+  {% endif %}
+
+  <footer class="site-footer">
+    <div class="container">© PhishScope — Built for SOC study projects</div>
+  </footer>
+
+<script>
+  // show selected file name
+  const fileInput = document.getElementById('fileInput');
+  const fileNameSpan = document.getElementById('fileName');
+  if (fileInput && fileNameSpan) {
+    fileInput.addEventListener('change', function(){
+      const f = this.files[0];
+      fileNameSpan.textContent = f ? f.name : 'No file chosen';
+    });
+  }
+
+  // if results present, scroll to results for user convenience
+  window.addEventListener('load', function() {
+    const results = document.getElementById('results');
+    if (results) {
+      results.scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+</script>
+</body>
+</html>
